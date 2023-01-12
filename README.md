@@ -1,6 +1,9 @@
 # cryogenesis-rando
+
 Randomizer for Super Metroid romhack "Cryogenesis" by Onnyks
+
 Python 3
+
 Presemnted as-is, and I don't intend to do many updates
 
 1. Download this repository
