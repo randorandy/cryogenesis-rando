@@ -99,7 +99,7 @@ def generate() -> Game:
         # now start randomizing
         seedComplete = assumed_fill(game)
 
-   return game
+    return game
 
 
 def assumed_fill(game: Game, spoilerSave: str) -> tuple[bool, str]:
