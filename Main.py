@@ -98,11 +98,9 @@ def generate() -> Game:
         game.item_placement_spoiler += f"Seed: {seeeed}"
         # now start randomizing
         seedComplete = assumed_fill(game)
-
     return game
 
-
-def assumed_fill(game: Game, spoilerSave: str) -> tuple[bool, str]:
+def assumed_fill(game: Game) -> tuple[bool]:
     for loc in game.all_locations.values():
         loc["item"] = None
     dummy_locations: list[Location] = []
