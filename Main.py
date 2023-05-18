@@ -54,8 +54,12 @@ fillers: dict[str, Type[FillAlgorithm]] = {
 
 # main program
 def Main(argv: list[str], romWriter: Optional[RomWriter] = None) -> None:
-    
+    game = generate()
+    rom_name = write_rom(game)
+    write_spoiler_file(game, rom_name)    
 
+
+def generate() -> Game:
     logicChoice = "E"
     fillChoice = "D"
     areaA = ""
@@ -65,77 +69,37 @@ def Main(argv: list[str], romWriter: Optional[RomWriter] = None) -> None:
     # while hudFlicker != "Y" and hudFlicker != "N" :
     #     hudFlicker= input("Enter Y to patch HUD flicker on emulator, or N to decline:")
     #     hudFlicker = hudFlicker.title()
-    seeeed = random.randint(1000000, 9999999)
+    seeeed = random.randint(0, 9999999)
     random.seed(seeeed)
-    rom_name = f"CR{logicChoice}{fillChoice}{areaA}{seeeed}.sfc"
-    rom1_path = f"roms/{rom_name}"
-    rom_clean_path = "roms/Cryogenesis.sfc"
+
     # you must include Cryogenesis 1.0 in your roms folder with this name^
 
     csvdict = pullCSV()
     locArray = list(csvdict.values())
 
-    if romWriter is None :
-        romWriter = RomWriter.fromFilePaths(
-            origRomPath=rom_clean_path, newRomPath=rom1_path)
-    else :
-        # remove .sfc extension and dirs
-        romWriter.setBaseFilename(rom1_path[:-4].split("/")[-1])
-
-    spoilerSave = ""
     seedComplete = False
     randomizeAttempts = 0
-    game = Game(Expert if logicChoice == "E" else Casual,
+    game = Game(Expert,
                 csvdict,
                 areaA == "A",
-                VanillaAreas())
+                VanillaAreas(),
+                seeeed)
     while not seedComplete :
         if game.area_rando:  # area rando
             game.connections = areaRando.RandomizeAreas()
             # print(Connections) #test
         randomizeAttempts += 1
-        if randomizeAttempts > 1000 :
-            print("Giving up after 1000 attempts. Help?")
+        if randomizeAttempts > 10 :
+            print("Giving up after 10 attempts. Help?")
             break
         print("Starting randomization attempt:", randomizeAttempts)
-        spoilerSave = ""
-        spoilerSave += f"Starting randomization attempt: {randomizeAttempts}\n"
+        game.item_placement_spoiler = ""
+        game.item_placement_spoiler += f"Starting randomization attempt: {randomizeAttempts}\n"
+        game.item_placement_spoiler += f"Seed: {seeeed}"
         # now start randomizing
-        if fillChoice == "D":
-            seedComplete, spoilerSave = assumed_fill(game, spoilerSave)
-        else:
-            seedComplete, spoilerSave = forward_fill(game, fillChoice, spoilerSave)
+        seedComplete = assumed_fill(game)
 
-    # add area transitions to spoiler
-    if game.area_rando:
-        for item in game.connections:
-            spoilerSave += f"{item[0][2]} {item[0][3]} << >> {item[1][2]} {item[1][3]}\n"
-
-    _got_all, solve_lines, _locs = solve(game)
-
-    if game.area_rando:
-        areaRando.write_area_doors(game.connections, romWriter)
-    # write all items into their locations
-    for loc in locArray:
-        write_location(romWriter, loc)
-
-    # Morph Ball Fix
-    romWriter.writeBytes(0x268ce, b"\x04")
-    romWriter.writeBytes(0x26e02, b"\x04")
-
-    # Suit animation skip patch
-    romWriter.writeBytes(0x20717, b"\xea\xea\xea\xea")
-    romWriter.finalizeRom()
-    print("Done!")
-    print(f"Filename is {rom_name}")
-    with open(f"spoilers/{rom_name}.spoiler.txt", "w") as spoiler_file:
-        spoiler_file.write(f"RNG Seed: {seeeed}\n\n")
-        spoiler_file.write("\n Spoiler \n\n Spoiler \n\n Spoiler \n\n Spoiler \n\n")
-        spoiler_file.write(spoilerSave)
-        spoiler_file.write('\n\n')
-        for solve_line in solve_lines:
-            spoiler_file.write(solve_line + '\n')
-    print(f"Spoiler file is spoilers/{rom_name}.spoiler.txt")
+   return game
 
 
 def assumed_fill(game: Game, spoilerSave: str) -> tuple[bool, str]:
@@ -154,11 +118,10 @@ def assumed_fill(game: Game, spoilerSave: str) -> tuple[bool, str]:
             message = ('Item placement was not successful in assumed. '
                        f'{fill_algorithm.count_items_remaining()} items remaining.')
             print(message)
-            spoilerSave += f'{message}\n'
+
             break
         placeLocation, placeItem = placePair
         placeLocation["item"] = placeItem
-        spoilerSave += f"{placeLocation['fullitemname']} - - - {placeItem[0]}\n"
 
         if fill_algorithm.count_items_remaining() == 0:
             # Normally, assumed fill will always make a valid playthrough,
@@ -168,11 +131,63 @@ def assumed_fill(game: Game, spoilerSave: str) -> tuple[bool, str]:
             completable = True
             if completable:
                 print("Item placements successful.")
-                spoilerSave += "Item placements successful.\n"
-            return completable, spoilerSave
+            return completable
 
-    return False, spoilerSave
+    return False
 
+def write_rom(game: Game, romWriter: Optional[RomWriter] = None) -> str:
+    
+    logicChoice = "E"
+
+    areaA = ""
+
+    rom_name = f"Cryo{seeeed}.sfc"
+    rom1_path = f"roms/{rom_name}"
+    rom_clean_path = "roms/Cryogenesis.sfc"
+
+    if romWriter is None :
+        romWriter = RomWriter.fromFilePaths(origRomPath=rom_clean_path)
+    else :
+        # remove .sfc extension and dirs
+        romWriter.setBaseFilename(rom1_path[:-4].split("/")[-1])
+
+    for loc in game.all_locations.values():
+        write_location(romWriter, loc)
+
+    # Morph Ball Fix
+    romWriter.writeBytes(0x268ce, b"\x04")
+    romWriter.writeBytes(0x26e02, b"\x04")
+
+    # Suit animation skip patch
+    romWriter.writeBytes(0x20717, b"\xea\xea\xea\xea")
+    romWriter.finalizeRom(rom1_path)
+    print("Done!")
+    print(f"Filename is {rom_name}")
+
+    return rom_name
+
+def get_spoiler(game: Game) -> str:
+    """ the text in the spoiler file """
+
+    spoilerSave = game.item_placement_spoiler + '\n'
+
+    _completable, play_through, _locs = solve(game)
+    #solve_lines = spoil_play_through(play_through)
+
+    #s = f"RNG Seed: {game.seed}\n\n"
+    s = "\n Spoiler \n\n Spoiler \n\n Spoiler \n\n Spoiler \n\n"
+    s += spoilerSave
+    s += '\n\n'
+    for solve_line in play_through:
+        s += solve_line + '\n'
+
+    return s
+
+def write_spoiler_file(game: Game, rom_name: str) -> None:
+    text = get_spoiler(game)
+    with open(f"spoilers/{rom_name}.spoiler.txt", "w") as spoiler_file:
+        spoiler_file.write(text)
+    print(f"Spoiler file is spoilers/{rom_name}.spoiler.txt")
 
 def forward_fill(game: Game,
                  fillChoice: Literal["M", "S", "MM"],
