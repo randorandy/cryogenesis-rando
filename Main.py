@@ -139,7 +139,7 @@ def write_rom(game: Game, romWriter: Optional[RomWriter] = None) -> str:
 
     areaA = ""
 
-    rom_name = f"Cryo{seeeed}.sfc"
+    rom_name = f"Cryo{game.seed}.sfc"
     rom1_path = f"roms/{rom_name}"
     rom_clean_path = "roms/Cryogenesis.sfc"
 
