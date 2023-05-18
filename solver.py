@@ -50,8 +50,8 @@ def solve(game: Game, starting_items: Optional[Loadout] = None) -> tuple[bool, l
                 thing = cast(AreaDoor, thing)
                 new_area_doors.append(thing[3])
                 doors_accessed.add(thing)
-        if len(new_area_doors):
-            log_lines.append(f"  new area doors: {', '.join(new_area_doors)}")
+        #if len(new_area_doors):
+        #    log_lines.append(f"  new area doors: {', '.join(new_area_doors)}")
     '''
     # this loop just for spaceport
     stuck = False
@@ -90,7 +90,7 @@ def solve(game: Game, starting_items: Optional[Loadout] = None) -> tuple[bool, l
         #         print("but logic doesn't support that yet")
         return False, log_lines, [loc for loc in game.all_locations.values() if loc["fullitemname"] in used_locs]
     loadout.append(SunkenNestL)  # assuming this is where we land
-    log_lines.append(" - fall from spaceport -")
+    #log_lines.append(" - fall from spaceport -")
 
     stuck = False
     while not stuck:
